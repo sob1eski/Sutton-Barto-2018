@@ -5,19 +5,19 @@ class Player():
 
     def __init__(
         self,
-        k,
+        n_arms,
         strategy,
         type = 'q_values',
         update_type = 'average',
         alpha = 0.1
     ):
-        self.n_arms = k
+        self.n_arms = n_arms
         self.type = type
         if self.type == 'q_values':
-            self.q_values = k * [0.0]
-            self.action_counter = k * [0]
+            self.q_values = self.n_arms * [0.0]
+            self.action_counter = self.n_arms * [0]
         elif self.type == 'gradient':
-            self.preferences = k * [0.0]
+            self.preferences = self.n_arms * [0.0]
             self.soft_max = \
                 lambda prefrs, action: math.exp(self.preferences[action])\
                     /sum([math.exp(prefrs[i]) for i in range(self.n_arms)])
@@ -105,6 +105,14 @@ class Player():
                         (reward - self.baseline) * probs[i] for i in range(self.n_arms)
             ]
 
+    def reset(self):
+        if self.type == 'q_values':
+            self.q_values = self.n_arms * [0.0]
+            self.action_counter = self.n_arms * [0]
+        elif self.type == 'gradient':
+            self.preferences = self.n_arms * [0.0]
+            self.timestep = 0
+            self.baseline = 0
 
 class Strategy():
 
