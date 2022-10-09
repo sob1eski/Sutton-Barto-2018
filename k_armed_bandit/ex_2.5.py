@@ -1,3 +1,4 @@
+#%%
 import matplotlib.pyplot as plt
 from environment import SlotMachine
 from agent import Player, Strategy
@@ -42,8 +43,8 @@ for run in range(n_runs):
         info_0[0].append(reward_0)
         info_1[0].append(reward_1)
         environment.add_noise()
-        agent_0.update_q_values(action_0, reward_0)
-        agent_1.update_q_values(action_1, reward_1)
+        agent_0.update(action_0, reward_0)
+        agent_1.update(action_1, reward_1)
     scores_0['rewards'].append(info_0[0])
     scores_0['optimal_action'].append(info_0[1])
     scores_1['rewards'].append(info_1[0])
