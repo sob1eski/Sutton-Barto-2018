@@ -7,7 +7,8 @@ class SlotMachine():
         n_arms,
         timesteps_per_episode,
         stationary = True, 
-        init_true_q = None
+        init_true_q = None,
+        n_agents = 1
     ): 
         self.n_arms = n_arms
         self.timesteps = timesteps_per_episode
@@ -23,15 +24,21 @@ class SlotMachine():
             ]
         elif type(self.init_true_q) == list:
             self.true_q_values = self.init_true_q
+        self.n_agents = n_agents
+        self.counter = 0
 
     def get_reward(self, action):
         reward = random.gauss(self.true_q_values[action], 1)
+        self.counter += 1
+        if self.counter == self.n_agents:
+            self._add_noise()
+            self.counter = 0
         return reward
     
-    def get_n_of_timesteps(self):
+    def get_timesteps(self):
         return self.timesteps
     
-    def add_noise(self):
+    def _add_noise(self):
         if not self.stationary:
             self.true_q_values = [
                 v + random.gauss(0, 0.01) for v \
