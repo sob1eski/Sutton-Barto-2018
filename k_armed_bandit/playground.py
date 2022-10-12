@@ -14,35 +14,24 @@ class Testbed():
         self.env = environment
         self.agents = [agent[0] for agent in agents] # list of tuples of the form (object of class Player, 'name')
         self.agents_names = [agent[1] for agent in agents]
-        n_timesteps = self.env.get_timesteps()
-        self.results = {}
-        for agent_name in self.agents_names:
-            self.results[agent_name] = {
-                'rewards': [[None for _ in range(n_timesteps)] for _ in range(self.n_runs)],
-                'optimal_action': [[None for _ in range(n_timesteps)] for _ in range(self.n_runs)]
-            }
+        self.results = None
 
-    # def _reset_env_and_agents(self):
-    #     self.env.reset()
-    #     for agent in self.agents:
-    #             agent.reset()
-
-    def _choose_actions(self, env, run, timestep):
+    def _choose_actions(self, env, timestep, results):
         optimal_action = env.optimal_action()
         actions = []
         for agent, agent_name in zip(self.agents, self.agents_names):
             action = agent.choose_action()
             actions.append(action)
-            self.results[agent_name]['optimal_action'][run][timestep] = \
+            results[agent_name]['optimal_action'][timestep] = \
                 action == optimal_action
         return actions
 
-    def _get_rewards(self, env, actions, run, timestep):
+    def _get_rewards(self, env, actions, timestep, results):
         rewards = []
         for i, agent_name in enumerate(self.agents_names):
             reward = env.get_reward(actions[i])
             rewards.append(reward)
-            self.results[agent_name]['rewards'][run][timestep] = reward
+            results[agent_name]['rewards'][timestep] = reward
         return rewards 
 
     def _update_agents(self, actions, rewards):
@@ -52,25 +41,27 @@ class Testbed():
     def _perform_one_run(self, run):
         env = copy.deepcopy(self.env)
         n_timesteps = self.env.get_timesteps()
+        results = {}
+        for agent_name in self.agents_names:
+            results[agent_name] = {
+                'rewards': [None for _ in range(n_timesteps)],
+                'optimal_action': [None for _ in range(n_timesteps)]
+            }
         for timestep in range(n_timesteps):
-            actions = self._choose_actions(env, run, timestep)
-            rewards = self._get_rewards(env, actions, run, timestep)
+            actions = self._choose_actions(env, timestep, results)
+            rewards = self._get_rewards(env, actions, timestep, results)
             self._update_agents(actions, rewards)
-        # for agent_name in self.agents_names:
-        #     for key in ['rewards', 'optimal_action']:
-        #         self.results[agent_name][key] = self.results[agent_name][key]
+        return results
 
-    def run_experiment(self):
-        # n_timesteps = self.env.get_timesteps()
-        # for run in range(self.n_runs):
-        #     self._reset_env_and_agents()
-        #     for timestep in range(n_timesteps):
-        #         actions = self._choose_actions(run, timestep)
-        #         rewards = self._get_rewards(actions, run, timestep)
-        #         self._update_agents(actions, rewards)
-        runs = [run for run in range(n_runs)]
+    def _run_processes(self):
+        runs = [i for i in range(self.n_runs)]
         p = multiprocessing.Pool()
-        p.map(self._perform_one_run, runs)
+        results = p.map(self._perform_one_run, runs)
+        self.results = results
+    
+    def run_experiment(self):
+        if __name__ == '__main__':
+            self._run_processes()
 
 #%%
 from environment import SlotMachine
@@ -103,7 +94,4 @@ testbed = Testbed(
     environment = environment,
     agents = [(agent_0, 'constant'), (agent_1, 'average')]
 )
-if __name__ == '__main__':
-    testbed.run_experiment()
-#%%
-testbed.results
+testbed.run_experiment()
