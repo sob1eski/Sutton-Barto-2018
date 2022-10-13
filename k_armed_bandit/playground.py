@@ -1,4 +1,5 @@
 #%%
+import matplotlib.pyplot as plt
 import multiprocessing
 import copy
 
@@ -12,14 +13,15 @@ class Testbed():
     ):
         self.n_runs = n_runs
         self.env = environment
+        self.n_timesteps = self.env.get_timesteps()
         self.agents = [agent[0] for agent in agents] # list of tuples of the form (object of class Player, 'name')
         self.agents_names = [agent[1] for agent in agents]
         self.results = None
 
-    def _choose_actions(self, env, timestep, results):
+    def _choose_actions(self, env, agents, timestep, results):
         optimal_action = env.optimal_action()
         actions = []
-        for agent, agent_name in zip(self.agents, self.agents_names):
+        for agent, agent_name in zip(agents, self.agents_names):
             action = agent.choose_action()
             actions.append(action)
             results[agent_name]['optimal_action'][timestep] = \
@@ -34,12 +36,14 @@ class Testbed():
             results[agent_name]['rewards'][timestep] = reward
         return rewards 
 
-    def _update_agents(self, actions, rewards):
-        for agent, (action, reward) in zip(self.agents, zip(actions, rewards)):
+    def _update_agents(self, agents, actions, rewards):
+        for agent, (action, reward) in zip(agents, zip(actions, rewards)):
             agent.update(action, reward)
 
     def _perform_one_run(self, run):
+        # run - unused argument to allow for pool.map usage
         env = copy.deepcopy(self.env)
+        agents = copy.deepcopy(self.agents)
         n_timesteps = self.env.get_timesteps()
         results = {}
         for agent_name in self.agents_names:
@@ -48,9 +52,9 @@ class Testbed():
                 'optimal_action': [None for _ in range(n_timesteps)]
             }
         for timestep in range(n_timesteps):
-            actions = self._choose_actions(env, timestep, results)
+            actions = self._choose_actions(env, agents, timestep, results)
             rewards = self._get_rewards(env, actions, timestep, results)
-            self._update_agents(actions, rewards)
+            self._update_agents(agents, actions, rewards)
         return results
 
     def _run_processes(self):
@@ -59,39 +63,39 @@ class Testbed():
         results = p.map(self._perform_one_run, runs)
         self.results = results
     
-    def run_experiment(self):
-        if __name__ == '__main__':
-            self._run_processes()
+    def _preprocess_results(self):
+        mean_rewards = {name: [None for _ in range(self.n_timesteps)] for name in self.agents_names}
+        optimal_actions = {name: [None for _ in range(self.n_timesteps)] for name in self.agents_names}
+        for agent in self.agents_names:
+            for t in range(self.n_timesteps):
+                mean_rewards[agent][t] = sum(
+                    [self.results[run][agent]['rewards'][t] for
+                         run in range(self.n_runs)]
+                         )/self.n_runs
+                optimal_actions[agent][t] = sum(
+                    [self.results[run][agent]['optimal_action'][t] for
+                         run in range(self.n_runs)]
+                         )/self.n_runs
+        return mean_rewards, optimal_actions
 
-#%%
-from environment import SlotMachine
-from agent import Player, Strategy
-n_runs = 2000
-n_timesteps = 10000
-n_arms = 10
-strategy = Strategy(
-    'eps_greedy',
-    0.1
-)
-environment = SlotMachine(
-    n_arms = n_arms, 
-    timesteps_per_episode = n_timesteps, 
-    stationary = False
-)
-agent_0 = Player(
-    n_arms = n_arms, 
-    strategy = strategy,
-    update_type = 'constant',
-    alpha = 0.1
-)
-agent_1 = Player(
-    n_arms = n_arms, 
-    strategy = strategy,
-    update_type = 'average'
-)
-testbed = Testbed(
-    n_runs = n_runs,
-    environment = environment,
-    agents = [(agent_0, 'constant'), (agent_1, 'average')]
-)
-testbed.run_experiment()
+    def plot_results(self):
+        mean_rewards, optimal_actions = self._preprocess_results()
+        plt.figure(figsize = (12, 10))
+        for agent in self.agents_names:
+            plt.plot(mean_rewards[agent], label = agent)
+        plt.title(f'Mean rewards over {self.n_runs} runs per agent')
+        plt.ylabel('Value')
+        plt.xlabel('Timestep')
+        plt.legend()
+        plt.figure(figsize = (12, 10))
+        for agent in self.agents_names:
+            plt.plot(optimal_actions[agent], label = agent)
+        plt.title(f'Optimal action ratio over {self.n_runs} runs per agent') 
+        plt.ylabel('Ratio')
+        plt.xlabel('Timestep')
+        plt.ylim(bottom = 0, top = 1)
+        plt.legend()
+        plt.show()
+    
+    def run_experiment(self):
+        self._run_processes()
