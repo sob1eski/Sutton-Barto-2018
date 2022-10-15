@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import multiprocessing
 import copy
 
-class Testbed():
+class Playground():
 
     def __init__(
         self,
@@ -57,12 +57,12 @@ class Testbed():
             self._update_agents(agents, actions, rewards)
         return results
 
-    def _run_processes(self):
+    def run_experiment(self):
         runs = [i for i in range(self.n_runs)]
         p = multiprocessing.Pool()
         results = p.map(self._perform_one_run, runs)
         self.results = results
-    
+
     def _preprocess_results(self):
         mean_rewards = {name: [None for _ in range(self.n_timesteps)] for name in self.agents_names}
         optimal_actions = {name: [None for _ in range(self.n_timesteps)] for name in self.agents_names}
@@ -96,6 +96,3 @@ class Testbed():
         plt.ylim(bottom = 0, top = 1)
         plt.legend()
         plt.show()
-    
-    def run_experiment(self):
-        self._run_processes()
